@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>/b/ - Sala</title>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header id="roomTitle">/b/ - Sala</header>
+
+<div class="main-layout">
+
+    <div class="chat-area">
+        <div class="messages-container" id="messages"></div>
+
+        <div class="input-area">
+            <input type="text" id="messageInput" placeholder="Digite sua mensagem...">
+            <button onclick="sendMessage()">Post</button>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <h3>Online</h3>
+        <div id="users"></div>
+    </div>
+
+</div>
+
+<!-- LOGIN -->
+<div class="login-screen" id="loginScreen">
+    <div class="login-box">
+        <input type="text" id="nicknameInput" placeholder="Nickname">
+        <input type="text" id="roomInput" placeholder="Código da sala">
+        <button onclick="joinRoom()">Entrar</button>
+    </div>
+</div>
+
+<script>
+const socket = io();
+let currentRoom = null;
+
+function joinRoom() {
+    const nickname = document.getElementById("nicknameInput").value.trim();
+    const roomCode = document.getElementById("roomInput").value.trim();
+
+    if (!nickname || !roomCode) return;
+
+    socket.emit("join room", { nickname, roomCode }, (res) => {
+        if (!res.success) {
+            alert(res.message);
+            return;
+        }
+
+        currentRoom = roomCode;
+        document.getElementById("roomTitle").innerText = `/b/ - Sala ${roomCode}`;
+        document.querySelector("title").innerText = `/b/ - Sala ${roomCode}`;
+        document.getElementById("loginScreen").style.display = "none";
+    });
+}
+
+function sendMessage() {
+    const input = document.getElementById("messageInput");
+    const text = input.value.trim();
+
+    if (!text) return;
+
+    socket.emit("send message", text);
+    input.value = "";
+}
+
+socket.on("update message", (data) => {
+    const container = document.getElementById("messages");
+
+    const post = document.createElement("div");
+    post.className = "post";
+
+    post.innerHTML = `
+        <div class="post-header">
+            <span class="name">${data.from}</span>
+            <span>${data.date}</span>
+        </div>
+        <div class="post-message">${data.text}</div>
+    `;
+
+    container.appendChild(post);
+    container.scrollTop = container.scrollHeight;
+});
+
+socket.on("system message", (data) => {
+    const container = document.getElementById("messages");
+
+    const msg = document.createElement("div");
+    msg.className = "system-message";
+    msg.innerText = `[${data.date}] ${data.text}`;
+
+    container.appendChild(msg);
+    container.scrollTop = container.scrollHeight;
+});
+
+socket.on("update users", (users) => {
+    const container = document.getElementById("users");
+    container.innerHTML = "";
+
+    users.forEach(user => {
+        const div = document.createElement("div");
+        div.className = "user-item";
+        div.innerText = user;
+        container.appendChild(div);
+    });
+});
+
+document.getElementById("messageInput").addEventListener("keypress", e => {
+    if (e.key === "Enter") sendMessage();
+});
+</script>
+
+</body>
+</html>
